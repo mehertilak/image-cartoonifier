@@ -1,0 +1,305 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Cartoonifier</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        .drop-zone {
+            border: 2px dashed #cbd5e0;
+            transition: all 0.3s ease;
+        }
+        .drop-zone:hover {
+            border-color: #4a5568;
+            transform: scale(1.02);
+        }
+        .drop-zone.drag-over {
+            background-color: #ebf4ff;
+            transform: scale(1.05);
+        }
+        .loading-spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #3498db;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+        }
+        .style-option {
+            transition: all 0.3s ease;
+            cursor: pointer;
+        }
+        .style-option:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+        }
+        .style-option.selected {
+            border-color: #3498db;
+            transform: scale(1.05);
+        }
+        .btn {
+            transition: all 0.3s ease;
+        }
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+        }
+        .btn:active {
+            transform: translateY(0);
+        }
+        .result-container {
+            opacity: 0;
+            transform: translateY(20px);
+            transition: all 0.5s ease;
+        }
+        .result-container.show {
+            opacity: 1;
+            transform: translateY(0);
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+        .animate-slide-in {
+            animation: slideIn 0.5s ease forwards;
+        }
+    </style>
+</head>
+<body class="bg-gray-100 min-h-screen">
+    <div class="container mx-auto px-4 py-8">
+        <!-- Header -->
+        <div class="text-center mb-8 animate-slide-in">
+            <h1 class="text-4xl font-bold text-gray-800 mb-2">AI Cartoonifier</h1>
+            <p class="text-gray-600">Transform your photos into amazing cartoon art</p>
+        </div>
+
+        <!-- Main Content -->
+        <div class="max-w-6xl mx-auto">
+            <!-- Style Selection -->
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8 animate-slide-in" style="animation-delay: 0.2s">
+                <div class="style-option p-4 bg-white rounded-lg border-2 border-transparent hover:border-blue-500" data-style="classic">
+                    <h3 class="font-semibold mb-2">Classic Cartoon</h3>
+                    <p class="text-sm text-gray-600">Traditional hand-drawn style</p>
+                </div>
+                <div class="style-option p-4 bg-white rounded-lg border-2 border-transparent hover:border-blue-500" data-style="comic">
+                    <h3 class="font-semibold mb-2">Comic Book</h3>
+                    <p class="text-sm text-gray-600">Bold lines and vibrant colors</p>
+                </div>
+                <div class="style-option p-4 bg-white rounded-lg border-2 border-transparent hover:border-blue-500" data-style="watercolor">
+                    <h3 class="font-semibold mb-2">Watercolor</h3>
+                    <p class="text-sm text-gray-600">Soft and artistic effect</p>
+                </div>
+                <div class="style-option p-4 bg-white rounded-lg border-2 border-transparent hover:border-blue-500" data-style="3d">
+                    <h3 class="font-semibold mb-2">3D Animation</h3>
+                    <p class="text-sm text-gray-600">Modern 3D animated look</p>
+                </div>
+            </div>
+
+            <!-- Upload Area -->
+            <div class="mb-8 animate-slide-in" style="animation-delay: 0.4s">
+                <div id="drop-zone" class="drop-zone bg-white rounded-lg p-8 text-center">
+                    <input type="file" id="file-input" class="hidden" accept="image/*">
+                    <div class="mb-4">
+                        <svg class="mx-auto h-12 w-12 text-gray-400" stroke="currentColor" fill="none" viewBox="0 0 48 48">
+                            <path d="M28 8H12a4 4 0 00-4 4v20m32-12v8m0 0v8a4 4 0 01-4 4H12a4 4 0 01-4-4v-4m32-4l-3.172-3.172a4 4 0 00-5.656 0L28 28M8 32l9.172-9.172a4 4 0 015.656 0L28 28m0 0l4 4m4-24h8m-4-4v8m-12 4h.02" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+                        </svg>
+                    </div>
+                    <div class="text-gray-600">
+                        <p class="font-medium">Drop your image here or click to upload</p>
+                        <p class="text-sm mt-1">Supports JPG, PNG, GIF</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Preview Area -->
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-8 mb-8">
+                <!-- Original Image -->
+                <div id="original-container" class="bg-white rounded-lg p-4 shadow-sm hidden animate-slide-in" style="animation-delay: 0.6s">
+                    <h3 class="text-lg font-semibold mb-4">Original Image</h3>
+                    <img id="original-image" class="w-full h-auto rounded-lg" alt="Original">
+                </div>
+
+                <!-- Cartoon Result -->
+                <div id="result-container" class="bg-white rounded-lg p-4 shadow-sm hidden animate-slide-in" style="animation-delay: 0.8s">
+                    <h3 class="text-lg font-semibold mb-4">Cartoonified Image</h3>
+                    <div class="relative">
+                        <img id="result-image" class="w-full h-auto rounded-lg" alt="Result">
+                        <div id="loading-spinner" class="absolute inset-0 flex items-center justify-center bg-white bg-opacity-80 hidden">
+                            <div class="loading-spinner"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Action Buttons -->
+            <div class="flex justify-center space-x-4 animate-slide-in" style="animation-delay: 1s">
+                <button id="convert-btn" class="btn bg-blue-500 text-white px-6 py-2 rounded-lg font-medium disabled:opacity-50 disabled:cursor-not-allowed" disabled>
+                    Convert to Cartoon
+                </button>
+                <button id="download-btn" class="btn bg-green-500 text-white px-6 py-2 rounded-lg font-medium disabled:opacity-50 disabled:cursor-not-allowed" disabled>
+                    Download
+                </button>
+                <button id="share-btn" class="btn bg-purple-500 text-white px-6 py-2 rounded-lg font-medium disabled:opacity-50 disabled:cursor-not-allowed" disabled>
+                    Share
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let selectedStyle = 'classic';
+        let selectedFile = null;
+        let resultImage = null;
+
+        // Style selection
+        document.querySelectorAll('.style-option').forEach(option => {
+            option.addEventListener('click', () => {
+                document.querySelectorAll('.style-option').forEach(opt => opt.classList.remove('selected'));
+                option.classList.add('selected');
+                selectedStyle = option.dataset.style;
+            });
+        });
+
+        // File upload handling
+        const dropZone = document.getElementById('drop-zone');
+        const fileInput = document.getElementById('file-input');
+        const convertBtn = document.getElementById('convert-btn');
+        const downloadBtn = document.getElementById('download-btn');
+        const shareBtn = document.getElementById('share-btn');
+        const originalContainer = document.getElementById('original-container');
+        const resultContainer = document.getElementById('result-container');
+        const originalImage = document.getElementById('original-image');
+        const resultImageElement = document.getElementById('result-image');
+        const loadingSpinner = document.getElementById('loading-spinner');
+
+        dropZone.addEventListener('click', () => fileInput.click());
+
+        dropZone.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            dropZone.classList.add('drag-over');
+        });
+
+        dropZone.addEventListener('dragleave', () => {
+            dropZone.classList.remove('drag-over');
+        });
+
+        dropZone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            dropZone.classList.remove('drag-over');
+            handleFile(e.dataTransfer.files[0]);
+        });
+
+        fileInput.addEventListener('change', (e) => {
+            handleFile(e.target.files[0]);
+        });
+
+        function handleFile(file) {
+            if (file && file.type.startsWith('image/')) {
+                selectedFile = file;
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    originalImage.src = e.target.result;
+                    originalContainer.classList.remove('hidden');
+                    convertBtn.disabled = false;
+                };
+                reader.readAsDataURL(file);
+            }
+        }
+
+        convertBtn.addEventListener('click', async () => {
+            if (!selectedFile) return;
+
+            loadingSpinner.classList.remove('hidden');
+            resultContainer.classList.remove('hidden');
+            convertBtn.disabled = true;
+
+            const formData = new FormData();
+            formData.append('image', selectedFile);
+            formData.append('style', selectedStyle);
+
+            try {
+                const response = await fetch('/process', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    resultImageElement.src = data.image;
+                    resultImage = data.image;
+                    downloadBtn.disabled = false;
+                    shareBtn.disabled = false;
+                } else {
+                    alert(data.error || 'An error occurred');
+                }
+            } catch (error) {
+                alert('Error processing image');
+                console.error(error);
+            } finally {
+                loadingSpinner.classList.add('hidden');
+                convertBtn.disabled = false;
+            }
+        });
+
+        downloadBtn.addEventListener('click', async () => {
+            if (!resultImage) return;
+
+            try {
+                const response = await fetch('/download', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ image: resultImage })
+                });
+
+                const blob = await response.blob();
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = 'cartoon.png';
+                document.body.appendChild(a);
+                a.click();
+                window.URL.revokeObjectURL(url);
+                document.body.removeChild(a);
+            } catch (error) {
+                alert('Error downloading image');
+                console.error(error);
+            }
+        });
+
+        shareBtn.addEventListener('click', async () => {
+            if (!resultImage) return;
+
+            try {
+                if (navigator.share) {
+                    const blob = await fetch(resultImage).then(r => r.blob());
+                    const file = new File([blob], 'cartoon.png', { type: 'image/png' });
+                    await navigator.share({
+                        files: [file],
+                        title: 'My Cartoonified Image',
+                        text: 'Check out my cartoonified image!'
+                    });
+                } else {
+                    alert('Sharing is not supported on this device/browser');
+                }
+            } catch (error) {
+                alert('Error sharing image');
+                console.error(error);
+            }
+        });
+    </script>
+</body>
+</html>
